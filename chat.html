@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>شات نت 34</title>
+
+<style>
+body {
+  font-family: Arial;
+  background:#0f172a;
+  color:#fff;
+  text-align:center;
+}
+
+input, button, select {
+  padding:10px;
+  margin:5px;
+  border:none;
+  border-radius:5px;
+}
+
+button {
+  cursor:pointer;
+  color:#fff;
+}
+
+#chat, #rooms {
+  display:none;
+}
+
+#messages {
+  height:300px;
+  overflow:auto;
+  border:1px solid #334155;
+  margin:10px;
+  padding:10px;
+  text-align:right;
+  background:#111827;
+}
+
+.msg {
+  padding:5px;
+  border-bottom:1px solid #1f2937;
+}
+
+.logo img{
+  width:140px;
+  border-radius:20px;
+  box-shadow:0 0 15px rgba(56,189,248,0.5);
+}
+</style>
+</head>
+
+<body>
+
+<div class="logo">
+  <h2>🔥 شات نت 34 🔥</h2>
+</div>
+
+<!-- تسجيل -->
+<div id="auth">
+
+<h2>الدخول</h2>
+
+<input id="email" placeholder="البريد الإلكتروني"><br>
+<input id="password" type="password" placeholder="كلمة المرور"><br>
+
+<button onclick="register()" style="background:#38bdf8;">إنشاء حساب</button>
+<button onclick="login()" style="background:#2563eb;">تسجيل الدخول</button>
+
+</div>
+
+<!-- الغرف -->
+<div id="rooms">
+<h2>الغرف</h2>
+
+<input id="roomName" placeholder="اسم الغرفة">
+<button onclick="createRoom()">إنشاء</button>
+
+<ul id="roomList"></ul>
+
+<button onclick="logout()">خروج</button>
+</div>
+
+<!-- الشات -->
+<div id="chat">
+<h2 id="roomTitle">شات نت</h2>
+
+<div id="messages"></div>
+
+<input id="msg">
+<button onclick="send()">إرسال</button>
+<button onclick="back()">رجوع</button>
+</div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+<script>
+
+// 🔥 لازم تغيرها ببياناتك من Firebase
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_AUTH_DOMAIN",
+  projectId: "YOUR_PROJECT_ID",
+};
+
+firebase.initializeApp(firebaseConfig);
+
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+let currentRoom = ""; // ✅ إصلاح مهم
+
+function register(){
+  let email = document.getElementById("email").value;
+  let pass = document.getElementById("password").value;
+
+  auth.createUserWithEmailAndPassword(email, pass)
+  .then(res=>{
+    db.collection("users").doc(res.user.uid).set({email});
+    alert("تم إنشاء الحساب ✔");
+  });
+}
+
+function login(){
+  auth.signInWithEmailAndPassword(
+    document.getElementById("email").value,
+    document.getElementById("password").value
+  );
+}
+
+function logout(){
+  auth.signOut();
+}
+
+auth.onAuthStateChanged(user=>{
+  if(user){
+    document.getElementById("auth").style.display="none";
+    document.getElementById("rooms").style.display="block";
+    loadRooms();
+  } else {
+    document.getElementById("auth").style.display="block";
+    document.getElementById("rooms").style.display="none";
+    document.getElementById("chat").style.display="none";
+  }
+});
+
+function createRoom(){
+  db.collection("rooms").add({
+    name: document.getElementById("roomName").value
+  });
+}
+
+function loadRooms(){
+  db.collection("rooms").onSnapshot(snap=>{
+    let list=document.getElementById("roomList");
+    list.innerHTML="";
+
+    snap.forEach(doc=>{
+      let li=document.createElement("li");
+      li.innerText=doc.data().name;
+      li.onclick=()=>enterRoom(doc.id,doc.data().name);
+      list.appendChild(li);
+    });
+  });
+}
+
+function enterRoom(id,name){
+  currentRoom = id; // ✅ إصلاح مهم
+
+  document.getElementById("rooms").style.display="none";
+  document.getElementById("chat").style.display="block";
+  document.getElementById("roomTitle").innerText=name;
+
+  db.collection("rooms").doc(id)
+  .collection("messages")
+  .orderBy("time")
+  .onSnapshot(snap=>{
+    let div=document.getElementById("messages");
+    div.innerHTML="";
+
+    snap.forEach(doc=>{
+      let d=doc.data();
+      let msg=document.createElement("div");
+      msg.className="msg";
+      msg.innerText=d.text;
+      div.appendChild(msg);
+    });
+  });
+}
+
+function send(){
+  if(currentRoom=="") return;
+
+  db.collection("rooms").doc(currentRoom)
+  .collection("messages").add({
+    text: document.getElementById("msg").value,
+    time: new Date()
+  });
+
+  document.getElementById("msg").value="";
+}
+
+function back(){
+  document.getElementById("chat").style.display="none";
+  document.getElementById("rooms").style.display="block";
+}
+
+</script>
+
+</body>
+</html>
